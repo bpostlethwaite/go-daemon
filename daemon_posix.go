@@ -109,7 +109,7 @@ func (d *Context) parent() (child *os.Process, err error) {
 		Env:   d.Env,
 		Files: d.files(),
 		Sys: &syscall.SysProcAttr{
-			Setsid:     true,
+			Setsid: true,
 		},
 	}
 
@@ -178,8 +178,24 @@ func (d *Context) closeFiles() (err error) {
 }
 
 func (d *Context) prepareEnv() (err error) {
-	if d.abspath, err = filepath.Abs(os.Args[0]); err != nil {
+
+	prog := os.Args[0]
+
+	if d.abspath, err = filepath.Abs(prog); err != nil {
 		return
+	}
+
+	// Does the program exist at this location?
+	if _, err := os.Stat(d.abspath); os.IsNotExist(err) {
+
+		// nope, lets try and run the program globally hoping it is set in the $PATH
+		binprog := filepath.Join("/usr/local/bin", prog)
+
+		if _, err := os.Stat(binprog); os.IsNotExist(err) {
+			fmt.Println("Could not find ./" + prog + " or " + binprog)
+			return err
+		}
+		d.abspath = binprog
 	}
 
 	if len(d.Args) == 0 {
