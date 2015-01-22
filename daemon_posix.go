@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -105,7 +106,7 @@ func (d *Context) parent() (child *os.Process, err error) {
 	}
 
 	attr := &os.ProcAttr{
-		Dir:   d.WorkDir,
+		Dir:   "./", //d.WorkDir,
 		Env:   d.Env,
 		Files: d.files(),
 		Sys: &syscall.SysProcAttr{
@@ -181,21 +182,32 @@ func (d *Context) prepareEnv() (err error) {
 
 	prog := os.Args[0]
 
-	if d.abspath, err = filepath.Abs(prog); err != nil {
-		return
+	// lets search for the binary on the users path
+	path := os.Getenv("PATH")
+	paths := strings.Split(path, ":")
+
+	cwd, err := filepath.Abs(filepath.Dir(prog))
+	if err != nil {
+		return err
 	}
 
-	// Does the program exist at this location?
-	if _, err := os.Stat(d.abspath); os.IsNotExist(err) {
+	paths = append([]string{cwd}, paths...)
 
-		// nope, lets try and run the program globally hoping it is set in the $PATH
-		binprog := filepath.Join("/usr/local/bin", prog)
+	// First look for binary in current directory, then search
+	// all other user paths.
+	for _, p := range paths {
 
-		if _, err := os.Stat(binprog); os.IsNotExist(err) {
-			fmt.Println("Could not find ./" + prog + " or " + binprog)
-			return err
+		binpath := filepath.Join(p, prog)
+
+		// Does the program exist at this location?
+		if _, err := os.Stat(binpath); err == nil {
+			d.abspath = binpath
+			break
 		}
-		d.abspath = binprog
+
+	}
+	if d.abspath == "" {
+		return fmt.Errorf("Could not find binary '" + prog + "' in local directory or $PATH")
 	}
 
 	if len(d.Args) == 0 {
