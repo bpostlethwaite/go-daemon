@@ -106,7 +106,7 @@ func (d *Context) parent() (child *os.Process, err error) {
 	}
 
 	attr := &os.ProcAttr{
-		Dir:   "./", //d.WorkDir,
+		Dir:   d.WorkDir,
 		Env:   d.Env,
 		Files: d.files(),
 		Sys: &syscall.SysProcAttr{
@@ -208,6 +208,8 @@ func (d *Context) prepareEnv() (err error) {
 	}
 	if d.abspath == "" {
 		return fmt.Errorf("Could not find binary '" + prog + "' in local directory or $PATH")
+	} else {
+		fmt.Println("setting d.abspath =", d.abspath)
 	}
 
 	if len(d.Args) == 0 {
